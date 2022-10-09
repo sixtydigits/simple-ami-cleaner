@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime
 
-from simple_ami_cleaner.ami_cleaner import sort_images_by_creation_date_desc, \
+from simple_ami_cleaner.ami_cleaner import sort_images_by_creation_date_asc, \
     filter_images_by_age, filter_images_by_excluded, filter_images_by_keep, filter_images, format_date
 
 __author__ = "Dan Washusen"
@@ -12,7 +12,7 @@ def find_index(image_id, images):
         if image['ImageId'] == image_id:
             return index
 
-def test_sort_images_by_creation_date_desc():
+def test_sort_images_by_creation_date_asc():
     now = datetime.now()
     images = [
         {
@@ -29,7 +29,7 @@ def test_sort_images_by_creation_date_desc():
         },
     ]
 
-    images = sort_images_by_creation_date_desc(images)
+    images = sort_images_by_creation_date_asc(images)
 
     assert find_index(image_id="abc123", images=images) == 0
     assert find_index(image_id="abc124", images=images) == 1
@@ -38,7 +38,7 @@ def test_sort_images_by_creation_date_desc():
 
 def test_filter_images_by_age():
     now = datetime.now()
-    images = sort_images_by_creation_date_desc([
+    images = sort_images_by_creation_date_asc([
         {
             "ImageId": "abc123",
             "CreationDate": format_date(datetime(2021, 1, 20))
@@ -63,7 +63,7 @@ def test_filter_images_by_age():
 
 def test_filter_images_by_excluded():
     now = datetime.now()
-    images = sort_images_by_creation_date_desc([
+    images = sort_images_by_creation_date_asc([
         {
             "ImageId": "abc123",
             "CreationDate": format_date(datetime(2021, 1, 20))
@@ -88,7 +88,7 @@ def test_filter_images_by_excluded():
 
 def test_filter_images_by_keep():
     now = datetime.now()
-    images = sort_images_by_creation_date_desc([
+    images = sort_images_by_creation_date_asc([
         {
             "ImageId": "abc123",
             "CreationDate": format_date(datetime(2021, 1, 20))
@@ -113,7 +113,7 @@ def test_filter_images_by_keep():
 
 def test_filter_images_by_keep_honours_negative_value():
     now = datetime.now()
-    images = sort_images_by_creation_date_desc([
+    images = sort_images_by_creation_date_asc([
         {
             "ImageId": "abc123",
             "CreationDate": format_date(datetime(2021, 1, 20))

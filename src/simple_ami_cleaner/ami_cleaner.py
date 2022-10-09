@@ -146,7 +146,7 @@ def filter_images_by_keep(images, keep):
         return images
 
 
-def sort_images_by_creation_date_desc(images):
+def sort_images_by_creation_date_asc(images):
     def sorter(element):
         return element['CreationDate']
 
@@ -159,7 +159,7 @@ def filter_images(images, keep=-1, min_age_days=-1, excluded_image_ids=None):
     if excluded_image_ids is None:
         excluded_image_ids = []
 
-    images = sort_images_by_creation_date_desc(images)
+    images = sort_images_by_creation_date_asc(images)
 
     images = filter_images_by_keep(images=images, keep=keep)
 
