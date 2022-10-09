@@ -16,19 +16,20 @@ def parse_args(args):
 
     parser.add_argument(
         "name_pattern",
-        help="The AMI name patterns (e.g. some*name*amd64*)"
+        help="The AMI name patterns (e.g. some*name*amd64*)."
     )
     parser.add_argument(
         "--min_age_days",
         type=int,
         default=90,
-        help="The min age of an AMI to considered for cleanup, use '-1' to include all AMIs",
+        help="The min age of an AMI to considered for cleanup (default 90), use '-1' to disable age based checks.",
     )
     parser.add_argument(
         "--keep",
         type=int,
         default=-1,
-        help="The number of recent AMIs to keep, use '-1' to include all AMIs",
+        help="The number of recent AMIs to keep excluding them from the list of candidate AMIs, "
+             "use '-1' (default) to consider all AMIs.",
     )
     parser.add_argument(
         "--exclude_images",
@@ -36,19 +37,19 @@ def parse_args(args):
         default="USED",
         help="A comma separated list of AMI ImageIds to exclude OR a special value of 'USED' which will query "
              "for AMIs that are associated with running EC2 instances "
-             "(on the current account, this does *NOT* work in cross-account scenarios)",
+             "(on the current account, this does *NOT* work in cross-account scenarios).",
     )
     parser.add_argument(
         "--dry-run",
         type=bool,
         default=True,
-        help="Simulate a clean without actually deleting anything",
+        help="Simulate a clean without actually deleting anything (default True).",
     )
     parser.add_argument(
         "--force",
         type=bool,
         default=False,
-        help="Skips the user prompts",
+        help="Skips user prompts to confirm destructive actions.",
     )
 
     parser.add_argument(
@@ -60,7 +61,7 @@ def parse_args(args):
         "-v",
         "--verbose",
         dest="loglevel",
-        help="set loglevel to DEBUG",
+        help="Set loglevel to DEBUG",
         action="store_const",
         const=logging.DEBUG,
     )
