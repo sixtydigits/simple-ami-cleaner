@@ -3,16 +3,14 @@ import sys
 import logging
 from datetime import datetime
 
-import boto3
-from botocore.config import Config
 from botocore.exceptions import ClientError
-
 
 _logger = logging.getLogger(__name__)
 
 
-def fetch_running_image_ids(ec2_client):
-    response = ec2_client.describe_instances(
+def fetch_image_ids_in_use_by_instances(ec2_client):
+    paginator = ec2_client.get_paginator("describe_instances")
+    page_iterator = paginator.paginate(
         Filters=[
             {
                 "Name": "instance-state-name",
@@ -27,15 +25,49 @@ def fetch_running_image_ids(ec2_client):
         ]
     )
 
-    images = [instance.get("ImageId", None)
-              for reservation in response.get("Reservations", [])
-              for instance in reservation.get("Instances", [])]
+    images = []
+    for page in page_iterator:
+        for reservation in page["Reservations"]:
+            for instance in reservation["Instances"]:
+                _logger.debug(
+                    f"Found AMI {instance['ImageId']} currently in use by reserved instance {instance['InstanceId']}")
+                images.append(instance["ImageId"])
 
-    images = list(dict.fromkeys(images))
-
-    _logger.info(f"Found {len(images)} AMIs currently in use...")
+    _logger.info(f"Found {len(images)} AMIs currently in use by instances...")
 
     return images
+
+
+def fetch_image_ids_in_use_by_launch_templates(ec2_client):
+    paginator = ec2_client.get_paginator("describe_launch_template_versions")
+    page_iterator = paginator.paginate(Versions=["$Latest", "$Default"])
+
+    images = []
+    for page in page_iterator:
+        for launch_template_version in page["LaunchTemplateVersions"]:
+            if "LaunchTemplateData" in launch_template_version and \
+                    "ImageId" in launch_template_version["LaunchTemplateData"]:
+                _logger.debug(
+                    f"Found AMI {launch_template_version['LaunchTemplateData']['ImageId']} currently in use by "
+                    f"launch template {launch_template_version['LaunchTemplateName']} "
+                    f"({launch_template_version['LaunchTemplateId']}:{launch_template_version['VersionNumber']})")
+                images.append(launch_template_version["LaunchTemplateData"]["ImageId"])
+
+    _logger.info(f"Found {len(images)} AMIs currently in use by $Latest and $Default launch template versions...")
+
+    return images
+
+
+def fetch_image_ids_in_use(ec2_client):
+    excluded_image_ids = []
+    excluded_image_ids.extend(
+        fetch_image_ids_in_use_by_instances(ec2_client=ec2_client)
+    )
+    excluded_image_ids.extend(
+        fetch_image_ids_in_use_by_launch_templates(ec2_client=ec2_client)
+    )
+
+    return excluded_image_ids
 
 
 def fetch_images(ec2_client, name_pattern):
@@ -51,7 +83,7 @@ def fetch_images(ec2_client, name_pattern):
         ],
     )
 
-    available_images = images_response.get('Images')
+    available_images = images_response.get("Images")
 
     return available_images
 
@@ -81,7 +113,7 @@ def deregister_image(ec2_client, image, dry_run):
         return
 
     try:
-        ec2_client.deregister_image(ImageId=image['ImageId'])
+        ec2_client.deregister_image(ImageId=image["ImageId"])
         _logger.debug(f"Done deregistering AMI")
     except ClientError:
         _logger.critical(msg=f"Error raised while attempting to deregister AMI {image['ImageId']}", exc_info=True)
@@ -106,7 +138,7 @@ def filter_images_by_age(images, min_age_days=-1):
     for image in images:
         if min_age_days > 0:
             present = datetime.now()
-            delta = present - parse_date(image['CreationDate'])
+            delta = present - parse_date(image["CreationDate"])
             if delta.days > min_age_days:
                 filtered_images.append(image)
             else:
@@ -129,7 +161,7 @@ def filter_images_by_excluded(images, excluded_image_ids):
     filtered_images = []
     filtered_count = 0
     for image in images:
-        if is_ami_in_use(image_id=image['ImageId'], used_ami_ids=excluded_image_ids):
+        if is_ami_in_use(image_id=image["ImageId"], used_ami_ids=excluded_image_ids):
             _logger.debug(f"AMI has been excluded, filtering: {image['ImageId']}")
             filtered_count = filtered_count + 1
         else:
@@ -139,6 +171,7 @@ def filter_images_by_excluded(images, excluded_image_ids):
 
 
 def filter_images_by_keep(images, keep):
+    # noinspection PyChainedComparisons
     if keep >= 0 and len(images) > keep:
         _logger.info(f"Excluding {keep} most recent matching AMIs...")
         return images[0:(len(images) - keep)]
@@ -148,7 +181,7 @@ def filter_images_by_keep(images, keep):
 
 def sort_images_by_creation_date_asc(images):
     def sorter(element):
-        return element['CreationDate']
+        return element["CreationDate"]
 
     images.sort(key=sorter)
 
@@ -191,20 +224,13 @@ def deregister_images_and_snapshots(ec2_client, images, dry_run):
 
 
 def clean_images(
+        ec2_client,
         name_pattern,
-        min_age_days=90, keep=3, force=False, dry_run=True, exclude_images="USED",
-        ec2_client=None
+        min_age_days=90, keep=3,
+        excluded_image_ids=None,
+        force=False,
+        dry_run=True,
 ):
-    if ec2_client is None:
-        ec2_client = boto3.client("ec2", config=Config(retries={"max_attempts": 3}))
-
-    excluded_image_ids = None
-    if exclude_images:
-        if exclude_images == "USED":
-            excluded_image_ids = fetch_running_image_ids(ec2_client=ec2_client)
-        else:
-            excluded_image_ids = exclude_images.replace(" ", "").split(",")
-
     _logger.debug(f"Fetching AMIs matching name {name_pattern} with a min age of {min_age_days} days...")
 
     images = fetch_images(ec2_client=ec2_client, name_pattern=name_pattern)

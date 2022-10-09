@@ -2,8 +2,11 @@ import argparse
 import logging
 import sys
 
+import boto3
+from botocore.config import Config
+
 from simple_ami_cleaner import __version__
-from .ami_cleaner import clean_images
+from .ami_cleaner import clean_images, fetch_image_ids_in_use
 
 __author__ = "Dan Washusen"
 __license__ = "MIT"
@@ -32,12 +35,18 @@ def parse_args(args):
              "use '-1' (default) to consider all AMIs.",
     )
     parser.add_argument(
-        "--exclude_images",
+        "--exclude_image_ids",
         type=str,
         default="USED",
-        help="A comma separated list of AMI ImageIds to exclude OR a special value of 'USED' which will query "
+        help="A comma separated list of AMI Ids to exclude OR a special value of 'USED' which will query "
              "for AMIs that are associated with running EC2 instances "
              "(on the current account, this does *NOT* work in cross-account scenarios).",
+    )
+    parser.add_argument(
+        "--print_excluded_image_ids_and_exit",
+        type=bool,
+        default=False,
+        help="Prints a comma separated list of excluded AMI Ids and exit.",
     )
     parser.add_argument(
         "--dry-run",
@@ -79,21 +88,34 @@ def setup_logging(loglevel):
 
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
     logging.basicConfig(
-        level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
+        level=loglevel, stream=sys.stderr, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
     )
 
 
 def main(args):
     args = parse_args(args)
     setup_logging(args.loglevel)
+
+    ec2_client = boto3.client("ec2", config=Config(retries={"max_attempts": 3}))
+
+    if args.exclude_image_ids == "USED":
+        excluded_image_ids = fetch_image_ids_in_use(ec2_client)
+        if args.print_excluded_image_ids_and_exit is True:
+            print(", ".join(excluded_image_ids))
+            sys.exit(0)
+    else:
+        excluded_image_ids = args.exclude_image_ids.replace(" ", "").split(",")
+
     clean_images(
+        ec2_client=ec2_client,
         name_pattern=args.name_pattern,
         keep=args.keep,
         min_age_days=args.min_age_days,
-        exclude_images=args.exclude_images,
+        excluded_image_ids=excluded_image_ids,
         dry_run=args.dry_run,
         force=args.force,
     )
+    sys.exit(0)
 
 
 def run():
