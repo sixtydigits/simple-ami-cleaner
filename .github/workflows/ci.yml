@@ -73,7 +73,7 @@ jobs:
           --installpkg '${{ needs.prepare.outputs.wheel-distribution }}'
           -- -rFEx --durations 10 --color yes
 
-  publish:
+  release:
     needs: test
     if: ${{ github.event_name == 'push' && contains(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
@@ -84,12 +84,43 @@ jobs:
       - name: Retrieve pre-built distribution files
         uses: actions/download-artifact@v3
         with: {name: python-distribution-files, path: dist/}
-      - name: Publish Package
+      - name: Gather artifact details
+        run: |
+          TARBALL_ARTIFACT_PATHNAME=$(ls dist/*.gz | head -n 1)
+          echo ::set-env name=TARBALL_ARTIFACT_PATHNAME::${TARBALL_ARTIFACT_PATHNAME}
+          TARBALL_ARTIFACT_NAME=$(basename ${TARBALL_ARTIFACT_PATHNAME})
+          echo ::set-env name=TARBALL_ARTIFACT_NAME::${TARBALL_ARTIFACT_NAME}
+          WHEEL_ARTIFACT_PATHNAME=$(ls dist/*.whl | head -n 1)
+          echo ::set-env name=WHEEL_ARTIFACT_PATHNAME::${WHEEL_ARTIFACT_PATHNAME}
+          WHEEL_ARTIFACT_NAME=$(basename ${WHEEL_ARTIFACT_PATHNAME})
+          echo ::set-env name=WHEEL_ARTIFACT_NAME::${WHEEL_ARTIFACT_NAME}
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
         env:
-          # TODO: Set your PYPI_TOKEN as a secret using GitHub UI
-          # - https://pypi.org/help/#apitoken
-          # - https://docs.github.com/en/actions/security-guides/encrypted-secrets
-          TWINE_REPOSITORY: pypi
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: pipx run tox -e publish
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload Tarball Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_name: ${{ env.TARBALL_ARTIFACT_NAME }}
+          asset_path: ${{ env.TARBALL_ARTIFACT_PATHNAME }}
+          asset_content_type: application/gzip
+      - name: Upload Wheel Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_name: ${{ env.WHEEL_ARTIFACT_NAME }}
+          asset_path: ${{ env.WHEEL_ARTIFACT_PATHNAME }}
+          asset_content_type: application/x-wheel+zip
