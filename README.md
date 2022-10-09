@@ -58,3 +58,27 @@ Proceed with the removal of 2 AMIs (Y/N)? y
 [2022-10-09 14:17:30] INFO:simple_ami_cleaner.ami_cleaner:Deleting snapshot snap-021bf89b915af6337
 [2022-10-09 14:17:30] INFO:simple_ami_cleaner.ami_cleaner:Skipping deleting snapshot in dry-run mode
 ```
+
+## Build and Test
+The tool builds using [TOX](https://tox.wiki/en/latest/) (e.g. `pip3 install tox`).
+
+### Executing the tests
+```shell
+$ tox
+...
+================================ 7 passed in 0.05s ================================
+_____________________________________ summary _____________________________________
+  default: commands succeeded
+  congratulations :)
+
+```
+
+### Build and install locally
+```shell
+$ tox -e build && pip3 install .
+...
+Successfully installed simple-ami-cleaner-0.0.post1.dev2+gb19da5a.d20221009
+
+$ simple-ami-cleaner
+usage: simple-ami-cleaner [-h] [--min_age_days MIN_AGE_DAYS] [--keep KEEP] [--exclude_images EXCLUDE_IMAGES] [--dry-run DRY_RUN] [--force FORCE] [--version] [-v] name_pattern
+```
