@@ -84,43 +84,34 @@ jobs:
       - name: Retrieve pre-built distribution files
         uses: actions/download-artifact@v3
         with: {name: python-distribution-files, path: dist/}
-      - name: Gather artifact details
-        run: |
-          TARBALL_ARTIFACT_PATHNAME=$(ls dist/*.gz | head -n 1)
-          echo ::set-env name=TARBALL_ARTIFACT_PATHNAME::${TARBALL_ARTIFACT_PATHNAME}
-          TARBALL_ARTIFACT_NAME=$(basename ${TARBALL_ARTIFACT_PATHNAME})
-          echo ::set-env name=TARBALL_ARTIFACT_NAME::${TARBALL_ARTIFACT_NAME}
-          WHEEL_ARTIFACT_PATHNAME=$(ls dist/*.whl | head -n 1)
-          echo ::set-env name=WHEEL_ARTIFACT_PATHNAME::${WHEEL_ARTIFACT_PATHNAME}
-          WHEEL_ARTIFACT_NAME=$(basename ${WHEEL_ARTIFACT_PATHNAME})
-          echo ::set-env name=WHEEL_ARTIFACT_NAME::${WHEEL_ARTIFACT_NAME}
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release and upload artifacts
+        uses: actions/github-script@v2
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-      - name: Upload Tarball Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_name: ${{ env.TARBALL_ARTIFACT_NAME }}
-          asset_path: ${{ env.TARBALL_ARTIFACT_PATHNAME }}
-          asset_content_type: application/gzip
-      - name: Upload Wheel Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_name: ${{ env.WHEEL_ARTIFACT_NAME }}
-          asset_path: ${{ env.WHEEL_ARTIFACT_PATHNAME }}
-          asset_content_type: application/x-wheel+zip
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            console.log('environment', process.versions);
+
+            const fs = require('fs').promises;
+
+            const { repo: { owner, repo }, sha } = context;
+            console.log({ owner, repo, sha });
+
+            const release = await github.repos.createRelease({
+              owner, repo,
+              tag_name: process.env.GITHUB_REF,
+              draft: true,
+              target_commitish: sha
+            });
+
+            console.log('created release', { release });
+
+            for (let file of await fs.readdir('./dist/')) {
+              console.log('uploading', file);
+
+              await github.repos.uploadReleaseAsset({
+                owner, repo,
+                release_id: release.data.id,
+                name: file,
+                data: await fs.readFile(file)
+              });            
+            }
