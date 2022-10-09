@@ -61,6 +61,28 @@ def test_filter_images_by_age():
     assert sum(1 for image in filtered_images if image['ImageId'] == "abc124") == 1
 
 
+def test_filter_images_by_age_honours_negative_value():
+    now = datetime.now()
+    images = sort_images_by_creation_date_asc([
+        {
+            "ImageId": "abc123",
+            "CreationDate": format_date(datetime(2021, 1, 20))
+        },
+        {
+            "ImageId": "abc124",
+            "CreationDate": format_date(datetime(2021, 1, 20))
+        },
+        {
+            "ImageId": "abc125",
+            "CreationDate": format_date(datetime(now.year, now.month, now.day))
+        },
+    ])
+
+    filtered_images, filter_count = filter_images_by_age(images=images, min_age_days=-1)
+
+    assert len(filtered_images) == len(images)
+
+
 def test_filter_images_by_excluded():
     now = datetime.now()
     images = sort_images_by_creation_date_asc([
