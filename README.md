@@ -9,14 +9,12 @@ This tool is inspired by https://github.com/bonclay7/aws-amicleaner which offers
 complex functionality.
 
 ## Using the tool
-By default the tool will run in dry run mode (`--dry-run=true`) showing you what actions it would take
+By default, the tool will run in dry run mode (`--dry-run=true`) showing you what actions it would take
 if executed. 
 
 ```shell
 $ simple-ami-cleaner -h
-usage: simple-ami-cleaner [-h] [--min_age_days MIN_AGE_DAYS] [--keep KEEP] [--exclude_image_ids EXCLUDE_IMAGE_IDS] [--print_excluded_image_ids_and_exit PRINT_EXCLUDED_IMAGE_IDS_AND_EXIT] [--dry-run DRY_RUN]
-                          [--force FORCE] [--version] [-v]
-                          name_pattern
+usage: simple-ami-cleaner [-h] [--min_age_days MIN_AGE_DAYS] [--keep KEEP] [--exclude_image_ids EXCLUDE_IMAGE_IDS] [--print_excluded_image_ids_and_exit] [--dry-run] [--force] [--version] [-v] name_pattern
 
 A tool to clean EC2 AMIs and associated snapshots
 
@@ -29,14 +27,14 @@ options:
                         The min age of an AMI to considered for cleanup (default 90), use '-1' to disable age based checks.
   --keep KEEP           The number of recent AMIs to keep excluding them from the list of candidate AMIs, use '-1' (default) to consider all AMIs.
   --exclude_image_ids EXCLUDE_IMAGE_IDS
-                        A comma separated list of AMI Ids to exclude OR a special value of 'USED' which will query for AMIs that are associated with running EC2 instances (on the current account, this does *NOT*
-                        work in cross-account scenarios).
-  --print_excluded_image_ids_and_exit PRINT_EXCLUDED_IMAGE_IDS_AND_EXIT
+                        A comma separated list of AMI Ids to exclude OR a special value of 'USED' which will query for AMIs that are associated with running EC2 instances and launch templates (on the current account).,
+  --print_excluded_image_ids_and_exit
                         Prints a comma separated list of excluded AMI Ids and exit.
-  --dry-run DRY_RUN     Simulate a clean without actually deleting anything (default True).
-  --force FORCE         Skips user prompts to confirm destructive actions.
+  --dry-run             Simulate a clean without actually deleting anything (default True).
+  --force               Skips user prompts to confirm destructive actions.
   --version             show program's version number and exit
   -v, --verbose         Set loglevel to DEBUG
+
 ```
 
 ### Examples
@@ -66,7 +64,7 @@ Proceed with the removal of 2 AMIs (Y/N)? y
 
 #### Cross-Account Scenarios, excluding AMIs in-use by 'Production' with AMIs owned by 'Operations'
 ```shell
-$ EXCLUDE_IDS=$(aws-vault exec Production -- simple-ami-cleaner --exclude_image_ids=USED --print_excluded_image_ids_and_exit=true 'my-bastion*')
+$ EXCLUDE_IDS=$(aws-vault exec Production -- simple-ami-cleaner --exclude_image_ids=USED --print_excluded_image_ids_and_exit 'my-bastion*')
 $ aws-vault exec Operations -- \
     simple-ami-cleaner --keep=2 --min_age_days=90 --exclude_image_ids="${EXCLUDE_IDS}" 'my-bastion*'
 ...
@@ -94,5 +92,5 @@ $ tox -e build && pip3 install .
 Successfully installed simple-ami-cleaner-0.0.post1.dev2+gb19da5a.d20221009
 
 $ simple-ami-cleaner
-usage: simple-ami-cleaner [-h] [--min_age_days MIN_AGE_DAYS] [--keep KEEP] [--exclude_images EXCLUDE_IMAGES] [--dry-run DRY_RUN] [--force FORCE] [--version] [-v] name_pattern
+usage: simple-ami-cleaner [-h] [--min_age_days MIN_AGE_DAYS] [--keep KEEP] [--exclude_image_ids EXCLUDE_IMAGE_IDS] [--print_excluded_image_ids_and_exit] [--dry-run] [--force] [--version] [-v] name_pattern
 ```

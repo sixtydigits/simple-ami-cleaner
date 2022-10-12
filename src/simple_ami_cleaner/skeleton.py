@@ -39,25 +39,21 @@ def parse_args(args):
         type=str,
         default="USED",
         help="A comma separated list of AMI Ids to exclude OR a special value of 'USED' which will query "
-             "for AMIs that are associated with running EC2 instances "
-             "(on the current account, this does *NOT* work in cross-account scenarios).",
+             "for AMIs that are associated with running EC2 instances and launch templates (on the current account).,",
     )
     parser.add_argument(
         "--print_excluded_image_ids_and_exit",
-        type=bool,
-        default=False,
+        action="store_true",
         help="Prints a comma separated list of excluded AMI Ids and exit.",
     )
     parser.add_argument(
         "--dry-run",
-        type=bool,
-        default=True,
+        action="store_true",
         help="Simulate a clean without actually deleting anything (default True).",
     )
     parser.add_argument(
         "--force",
-        type=bool,
-        default=False,
+        action="store_true",
         help="Skips user prompts to confirm destructive actions.",
     )
 
@@ -99,8 +95,8 @@ def main(args):
     ec2_client = boto3.client("ec2", config=Config(retries={"max_attempts": 3}))
 
     if args.exclude_image_ids == "USED":
-        excluded_image_ids = fetch_image_ids_in_use(ec2_client)
-        if args.print_excluded_image_ids_and_exit is True:
+        excluded_image_ids = fetch_image_ids_in_use(ec2_client=ec2_client, name_pattern=args.name_pattern)
+        if args.print_excluded_image_ids_and_exit:
             print(", ".join(excluded_image_ids))
             sys.exit(0)
     else:
