@@ -2,15 +2,17 @@ import pytest
 from datetime import datetime
 
 from simple_ami_cleaner.ami_cleaner import sort_images_by_creation_date_asc, \
-    filter_images_by_age, filter_images_by_excluded, filter_images_by_keep, filter_images, format_date
+    filter_images_by_age, filter_images_by_excluded, filter_images_by_keep, filter_images, format_date, check_name_match
 
 __author__ = "Dan Washusen"
 __license__ = "MIT"
+
 
 def find_index(image_id, images):
     for index, image in enumerate(images):
         if image['ImageId'] == image_id:
             return index
+
 
 def test_sort_images_by_creation_date_asc():
     now = datetime.now()
@@ -229,3 +231,15 @@ def test_filter_images_with_no_keep():
 
     assert sum(1 for image in remaining_images if image['ImageId'] == "abc124") == 0
     assert sum(1 for image in remaining_images if image['ImageId'] == "abc128") == 0
+
+
+def test_check_name_match():
+    assert check_name_match(
+        image_name="something-blah-amd64-20221004021208",
+        name_pattern="something*blah-*amd64*"
+    ) is True
+
+    assert check_name_match(
+        image_name="something-blah-amd64-20221004021208",
+        name_pattern="something*blah-*arm64*"
+    ) is False
