@@ -54,9 +54,9 @@ def parse_args(args):
         help="Prints a comma separated list of excluded AMI Ids to the specified path and exits.",
     )
     parser.add_argument(
-        "--dry-run",
+        "--clean",
         action="store_true",
-        help="Simulate a clean without actually deleting anything (default True).",
+        help="Actually deregister AMIs and delete snapshots.",
     )
     parser.add_argument(
         "--force",
@@ -161,6 +161,7 @@ def load_excluded_image_ids(ec2_client, args):
 
 def main(args):
     args = parse_args(args)
+
     setup_logging(args.loglevel)
 
     ec2_client = create_ec2_client(args.region)
@@ -186,7 +187,7 @@ def main(args):
         keep=args.keep,
         min_age_days=args.min_age_days,
         excluded_image_ids=excluded_image_ids,
-        dry_run=args.dry_run,
+        dry_run=not args.clean,
         force=args.force,
     )
     sys.exit(0)
