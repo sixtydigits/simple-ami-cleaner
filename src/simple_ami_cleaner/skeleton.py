@@ -22,6 +22,11 @@ def parse_args(args):
         help="The AMI name patterns (e.g. some*name*amd64*)."
     )
     parser.add_argument(
+        "--region",
+        type=str,
+        help="The AWS region, defaults to standard boto3 functionality.",
+    )
+    parser.add_argument(
         "--min_age_days",
         type=int,
         default=90,
@@ -88,11 +93,25 @@ def setup_logging(loglevel):
     )
 
 
+def create_ec2_client(region):
+    if region is None:
+        return boto3.client("ec2", config=Config(
+                retries={"max_attempts": 3}
+            )
+        )
+    else:
+        return boto3.client("ec2", config=Config(
+                region_name=region,
+                retries={"max_attempts": 3},
+            ),
+        )
+
+
 def main(args):
     args = parse_args(args)
     setup_logging(args.loglevel)
 
-    ec2_client = boto3.client("ec2", config=Config(retries={"max_attempts": 3}))
+    ec2_client = create_ec2_client(args.region)
 
     if args.exclude_image_ids == "USED":
         excluded_image_ids = fetch_image_ids_in_use(ec2_client=ec2_client, name_pattern=args.name_pattern)
