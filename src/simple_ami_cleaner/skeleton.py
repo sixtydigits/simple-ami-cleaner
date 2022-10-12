@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+import os
 
 import boto3
 from botocore.config import Config
@@ -43,13 +44,14 @@ def parse_args(args):
         "--exclude_image_ids",
         type=str,
         default="USED",
-        help="A comma separated list of AMI Ids to exclude OR a special value of 'USED' which will query "
-             "for AMIs that are associated with running EC2 instances and launch templates (on the current account).,",
+        help="A comma separated list of AMI Ids OR the path to a file with a new line separated AMI Ids OR 'USED' "
+             "which will query for AMIs that are associated with running EC2 instances and launch templates (on the "
+             "current account).",
     )
     parser.add_argument(
-        "--print_excluded_image_ids_and_exit",
-        action="store_true",
-        help="Prints a comma separated list of excluded AMI Ids and exit.",
+        "--print_used_image_ids_and_exit",
+        type=str,
+        help="Prints a comma separated list of excluded AMI Ids to the specified path and exits.",
     )
     parser.add_argument(
         "--dry-run",
@@ -107,19 +109,76 @@ def create_ec2_client(region):
         )
 
 
+def print_used_image_ids(args, used_image_ids):
+    if len(used_image_ids) == 0:
+        return
+
+    output = os.linesep.join(used_image_ids)
+
+    _logger.info(f"Printing {len(used_image_ids)} in use AMI to '{args.print_used_image_ids_and_exit}")
+    if "/dev/stdout" == args.print_used_image_ids_and_exit:  # cross-platform support
+        print(output)
+    else:
+        with open(args.print_used_image_ids_and_exit, "a") as output_file:
+            # Append 'hello' at the end of file
+            output_file.write(output)
+            output_file.write(os.linesep)
+
+
+def fetch_and_print_used_image_ids(ec2_client, args):
+    used_image_ids = fetch_image_ids_in_use(
+        ec2_client=ec2_client,
+        name_pattern=args.name_pattern
+    )
+
+    print_used_image_ids(args=args, used_image_ids=used_image_ids)
+
+
+def load_excluded_image_ids(ec2_client, args):
+    excluded_image_ids = set()
+
+    if args.exclude_image_ids == "USED":
+        excluded_image_ids = fetch_image_ids_in_use(
+            ec2_client=ec2_client, name_pattern=args.name_pattern
+        )
+    else:
+        if os.path.exists(args.exclude_image_ids):
+            with open(args.exclude_image_ids) as f:
+                excluded_image_ids.update(
+                    [line.rstrip() for line in f]
+                )
+        else:
+            excluded_image_ids.update(
+                args.exclude_image_ids.replace(" ", "").split(",")
+            )
+
+        print(excluded_image_ids)
+
+        _logger.info(f"Loaded {len(excluded_image_ids)} unique AMIs, which will be excluded")
+
+    return excluded_image_ids
+
+
 def main(args):
     args = parse_args(args)
     setup_logging(args.loglevel)
 
     ec2_client = create_ec2_client(args.region)
 
-    if args.exclude_image_ids == "USED":
-        excluded_image_ids = fetch_image_ids_in_use(ec2_client=ec2_client, name_pattern=args.name_pattern)
-        if args.print_excluded_image_ids_and_exit:
-            print(", ".join(excluded_image_ids))
+    if args.print_used_image_ids_and_exit:
+        try:
+            fetch_and_print_used_image_ids(
+                ec2_client=ec2_client,
+                args=args,
+            )
             sys.exit(0)
-    else:
-        excluded_image_ids = args.exclude_image_ids.replace(" ", "").split(",")
+        except OSError:
+            _logger.exception(msg=f"An error occurred while attempting to append to file "
+                                  f"{args.print_used_image_ids_and_exit}", exc_info=True)
+            sys.exit(0)
+
+    if args.exclude_image_ids is not None:
+        excluded_image_ids = load_excluded_image_ids(ec2_client=ec2_client, args=args)
 
     clean_images(
         ec2_client=ec2_client,

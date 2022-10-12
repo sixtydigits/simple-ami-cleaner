@@ -189,11 +189,7 @@ def filter_images_by_age(images, min_age_days=-1):
 
 def filter_images_by_excluded(images, excluded_image_ids):
     def is_ami_in_use(image_id, used_ami_ids):
-        try:
-            used_ami_ids.index(image_id)
-            return True
-        except ValueError:
-            return False
+        return image_id in used_ami_ids
 
     filtered_images = []
     filtered_count = 0
@@ -268,7 +264,7 @@ def clean_images(
         force=False,
         dry_run=True,
 ):
-    _logger.info(f"Fetching AMIs matching name {name_pattern} with a min age of {min_age_days} days...")
+    _logger.info(f"Fetching AMIs matching name '{name_pattern}' with a min age of {min_age_days} days...")
 
     images = fetch_images(ec2_client=ec2_client, name_pattern=name_pattern)
 
