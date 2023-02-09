@@ -32,11 +32,15 @@ class ImageNotFoundException(Exception):
 
 
 def fetch_image(ec2_client, image_id):
-    images_response = ec2_client.describe_images(
-        ImageIds=[
-            image_id,
-        ],
-    )
+    try:
+        images_response = ec2_client.describe_images(
+            ImageIds=[
+                image_id,
+            ],
+        )
+    except ClientError:
+        _logger.warn(msg=f"Error raised while attempting to fetch image {image_id}", exc_info=True)
+        raise ImageNotFoundException(f'Could not find AMI for {image_id}')
 
     available_images = images_response.get("Images")
 

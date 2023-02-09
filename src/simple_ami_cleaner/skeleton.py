@@ -110,12 +110,9 @@ def create_ec2_client(region):
 
 
 def print_used_image_ids(args, used_image_ids):
-    if len(used_image_ids) == 0:
-        return
-
     output = os.linesep.join(used_image_ids)
 
-    _logger.info(f"Printing {len(used_image_ids)} in use AMI to '{args.print_used_image_ids_and_exit}")
+    _logger.info(f"Printing {len(used_image_ids)} in use AMI to '{args.print_used_image_ids_and_exit}'")
     if "/dev/stdout" == args.print_used_image_ids_and_exit:  # cross-platform support
         print(output)
     else:
@@ -152,9 +149,7 @@ def load_excluded_image_ids(ec2_client, args):
                 args.exclude_image_ids.replace(" ", "").split(",")
             )
 
-        print(excluded_image_ids)
-
-        _logger.info(f"Loaded {len(excluded_image_ids)} unique AMIs, which will be excluded")
+        _logger.info(f"Excluding the following AMIs: {excluded_image_ids}")
 
     return excluded_image_ids
 
