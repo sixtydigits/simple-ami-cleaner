@@ -38,9 +38,12 @@ def fetch_image(ec2_client, image_id):
                 image_id,
             ],
         )
-    except ClientError:
-        _logger.warn(msg=f"Error raised while attempting to fetch image {image_id}", exc_info=True)
-        raise ImageNotFoundException(f'Could not find AMI for {image_id}')
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'InvalidAMIID.NotFound':
+            raise ImageNotFoundException(f'Could not find AMI for {image_id}')
+        else:
+            raise e
+        
 
     available_images = images_response.get("Images")
 
