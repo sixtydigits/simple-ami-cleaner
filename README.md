@@ -94,3 +94,7 @@ Successfully installed simple-ami-cleaner-0.0.post1.dev2+gb19da5a.d20221009
 $ simple-ami-cleaner
 usage: simple-ami-cleaner [-h] [--min_age_days MIN_AGE_DAYS] [--keep KEEP] [--exclude_image_ids EXCLUDE_IMAGE_IDS] [--print_excluded_image_ids_and_exit] [--dry-run] [--force] [--version] [-v] name_pattern
 ```
+
+## Release
+The CI environment publihses the release, just commit and push a tag (e.g. v0.0.16). If you haven't released in a while make sure to
+re-enabled the 'paused' workflow first (https://github.com/sixtydigits/simple-ami-cleaner/actions/workflows/ci.yml).
